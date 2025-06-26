@@ -1,11 +1,16 @@
 "use client";
 
+import { useState } from 'react';
 import { DownloadForm } from '@/components/DownloadForm';
+import { BatchDownloadForm } from '@/components/BatchDownloadForm';
 import { ProgressTracker } from '@/components/ProgressTracker';
+import { QueueProgressList } from '@/components/QueueProgressTracker';
 import { HistoryPanel } from '@/components/HistoryPanel';
 import { DownloadProvider } from '@/contexts/DownloadContext';
 
 export default function Home() {
+  const [activeTab, setActiveTab] = useState<'single' | 'batch'>('single');
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
@@ -28,11 +33,44 @@ export default function Home() {
           {/* Main Content */}
           <DownloadProvider>
             <div className="space-y-6">
-              {/* Download Form */}
-              <DownloadForm />
+              {/* Tab Navigation */}
+              <div className="bg-white rounded-lg shadow-lg p-1">
+                <div className="flex space-x-1">
+                  <button
+                    onClick={() => setActiveTab('single')}
+                    className={`flex-1 py-3 px-4 text-sm font-medium rounded-md transition-colors ${
+                      activeTab === 'single'
+                        ? 'bg-blue-600 text-white'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                  >
+                    Single Download
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('batch')}
+                    className={`flex-1 py-3 px-4 text-sm font-medium rounded-md transition-colors ${
+                      activeTab === 'batch'
+                        ? 'bg-blue-600 text-white'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                  >
+                    Batch Download
+                  </button>
+                </div>
+              </div>
 
-              {/* Progress Tracker */}
-              <ProgressTracker />
+              {/* Tab Content */}
+              {activeTab === 'single' ? (
+                <div className="space-y-6">
+                  <DownloadForm />
+                  <ProgressTracker />
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <BatchDownloadForm />
+                  <QueueProgressList />
+                </div>
+              )}
             </div>
           </DownloadProvider>
 
@@ -85,13 +123,36 @@ export default function Home() {
           {/* Instructions */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-blue-900 mb-3">How to Use</h3>
-            <ol className="list-decimal list-inside space-y-2 text-blue-800 mb-4">
-              <li>Paste your M3U8 playlist URL in the input field above</li>
-              <li>Optionally, enter a custom title for your video</li>
-              <li>Adjust advanced settings if needed (concurrent downloads)</li>
-              <li>Click "Start Download" to begin the process</li>
-              <li>Monitor progress in real-time and access your download history</li>
-            </ol>
+
+            {/* Single Download Instructions */}
+            <div className="mb-4">
+              <h4 className="font-semibold text-blue-900 mb-2">📱 Single Download</h4>
+              <ol className="list-decimal list-inside space-y-1 text-blue-800 text-sm">
+                <li>Switch to the "Single Download" tab</li>
+                <li>Paste your M3U8 playlist URL in the input field</li>
+                <li>Optionally, enter a custom title for your video</li>
+                <li>Adjust advanced settings if needed (concurrent downloads)</li>
+                <li>Click "Start Download" to begin the process</li>
+              </ol>
+            </div>
+
+            {/* Batch Download Instructions */}
+            <div className="mb-4">
+              <h4 className="font-semibold text-blue-900 mb-2">📚 Batch Download</h4>
+              <ol className="list-decimal list-inside space-y-1 text-blue-800 text-sm">
+                <li>Switch to the "Batch Download" tab</li>
+                <li>Enter multiple M3U8 URLs (click "Add URL" for more)</li>
+                <li>Optionally, provide custom titles for each video</li>
+                <li>Set a queue name to organize your downloads</li>
+                <li>Adjust max concurrent downloads (1-5 simultaneous videos)</li>
+                <li>Click "Start Batch Download" to process all URLs</li>
+                <li>Use pause/resume/cancel controls to manage the queue</li>
+              </ol>
+            </div>
+
+            <p className="text-blue-800 text-sm">
+              💡 <strong>Tip:</strong> Monitor progress in real-time and access your download history below.
+            </p>
 
             <div className="bg-blue-100 border border-blue-300 rounded p-3 mt-4">
               <h4 className="font-semibold text-blue-900 mb-2">📁 Download Location</h4>

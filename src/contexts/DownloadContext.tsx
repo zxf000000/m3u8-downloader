@@ -3,9 +3,10 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { downloadManager } from '@/lib/download-manager';
 import { historyManager } from '@/lib/history-manager';
-import { DownloadProgress, M3U8Download } from '@/types';
+import { DownloadProgress, M3U8Download, DownloadQueue, QueueProgress, BatchDownloadRequest } from '@/types';
 
 interface DownloadContextType {
+  // Single download
   isDownloading: boolean;
   currentDownload: M3U8Download | null;
   progress: DownloadProgress | null;
@@ -13,6 +14,15 @@ interface DownloadContextType {
   startDownload: (url: string, title?: string, maxConcurrency?: number) => Promise<void>;
   cancelDownload: () => void;
   resetDownload: () => void;
+
+  // Batch download
+  activeQueues: DownloadQueue[];
+  queueProgress: Map<string, QueueProgress>;
+  startBatchDownload: (request: BatchDownloadRequest) => Promise<string | null>;
+  cancelQueue: (queueId: string) => void;
+  pauseQueue: (queueId: string) => void;
+  resumeQueue: (queueId: string) => void;
+  removeQueue: (queueId: string) => void;
 }
 
 const DownloadContext = createContext<DownloadContextType | undefined>(undefined);
@@ -26,6 +36,10 @@ export function DownloadProvider({ children }: DownloadProviderProps) {
   const [currentDownload, setCurrentDownload] = useState<M3U8Download | null>(null);
   const [progress, setProgress] = useState<DownloadProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Batch download state
+  const [activeQueues, setActiveQueues] = useState<DownloadQueue[]>([]);
+  const [queueProgress, setQueueProgress] = useState<Map<string, QueueProgress>>(new Map());
 
   const startDownload = useCallback(async (
     url: string,
@@ -89,14 +103,117 @@ export function DownloadProvider({ children }: DownloadProviderProps) {
     setIsDownloading(false);
   }, []);
 
+  // Batch download methods
+  const startBatchDownload = useCallback(async (request: BatchDownloadRequest): Promise<string | null> => {
+    try {
+      setError(null);
+
+      const response = await downloadManager.startBatchDownload(
+        request,
+        (queueProgressData) => {
+          // Update queue progress
+          setQueueProgress(prev => {
+            const newMap = new Map(prev);
+            newMap.set(queueProgressData.queueId, queueProgressData);
+            return newMap;
+          });
+
+          // Update active queues list
+          const queue = downloadManager.getQueue(queueProgressData.queueId);
+          if (queue) {
+            setActiveQueues(prev => {
+              const filtered = prev.filter(q => q.id !== queue.id);
+              return [...filtered, { ...queue }];
+            });
+          }
+        }
+      );
+
+      if (response.success && response.queueId) {
+        // Add to active queues
+        const queue = downloadManager.getQueue(response.queueId);
+        if (queue) {
+          setActiveQueues(prev => [...prev, { ...queue }]);
+        }
+        return response.queueId;
+      } else {
+        setError(response.error || 'Failed to start batch download');
+        return null;
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Batch download failed');
+      return null;
+    }
+  }, []);
+
+  const cancelQueue = useCallback((queueId: string) => {
+    downloadManager.cancelQueue(queueId);
+
+    // Update local state
+    setActiveQueues(prev => prev.filter(q => q.id !== queueId));
+    setQueueProgress(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(queueId);
+      return newMap;
+    });
+  }, []);
+
+  const pauseQueue = useCallback((queueId: string) => {
+    downloadManager.pauseQueue(queueId);
+
+    // Update local state
+    const queue = downloadManager.getQueue(queueId);
+    if (queue) {
+      setActiveQueues(prev => {
+        const filtered = prev.filter(q => q.id !== queueId);
+        return [...filtered, { ...queue }];
+      });
+    }
+  }, []);
+
+  const resumeQueue = useCallback((queueId: string) => {
+    downloadManager.resumeQueue(queueId);
+
+    // Update local state
+    const queue = downloadManager.getQueue(queueId);
+    if (queue) {
+      setActiveQueues(prev => {
+        const filtered = prev.filter(q => q.id !== queueId);
+        return [...filtered, { ...queue }];
+      });
+    }
+  }, []);
+
+  const removeQueue = useCallback((queueId: string) => {
+    // Cancel first, then remove from UI
+    downloadManager.cancelQueue(queueId);
+
+    setActiveQueues(prev => prev.filter(q => q.id !== queueId));
+    setQueueProgress(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(queueId);
+      return newMap;
+    });
+  }, []);
+
   const value: DownloadContextType = {
+    // Single download
     isDownloading,
     currentDownload,
     progress,
     error,
     startDownload,
     cancelDownload,
-    resetDownload
+    resetDownload,
+
+    // Batch download
+    activeQueues,
+    queueProgress,
+    startBatchDownload,
+    cancelQueue,
+    pauseQueue,
+    resumeQueue,
+    removeQueue
   };
 
   return (

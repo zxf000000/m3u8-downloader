@@ -53,3 +53,51 @@ export interface HistoryItem extends M3U8Download {
   downloadSpeed?: number;
   errorMessage?: string;
 }
+
+// Batch download types
+export interface DownloadQueue {
+  id: string;
+  name: string;
+  items: QueueItem[];
+  status: 'idle' | 'running' | 'paused' | 'completed' | 'failed';
+  maxConcurrent: number;
+  createdAt: Date;
+  completedAt?: Date;
+  totalItems: number;
+  completedItems: number;
+  failedItems: number;
+}
+
+export interface QueueItem extends M3U8Download {
+  queueId: string;
+  priority: number;
+  retryCount: number;
+  maxRetries: number;
+  addedAt: Date;
+}
+
+export interface BatchDownloadRequest {
+  urls: string[];
+  titles?: string[];
+  maxConcurrency?: number;
+  queueName?: string;
+}
+
+export interface QueueProgress {
+  queueId: string;
+  totalItems: number;
+  completedItems: number;
+  failedItems: number;
+  activeItems: number;
+  overallProgress: number;
+  totalSpeed: number;
+  estimatedTimeRemaining: number;
+  status: string;
+}
+
+export interface BatchDownloadResponse {
+  success: boolean;
+  queueId?: string;
+  error?: string;
+  addedCount?: number;
+}

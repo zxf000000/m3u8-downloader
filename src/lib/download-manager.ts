@@ -1,4 +1,4 @@
-import { M3U8Playlist, M3U8Download, DownloadProgress } from '@/types';
+import { M3U8Playlist, M3U8Download, DownloadProgress, DownloadQueue, QueueItem, QueueProgress, BatchDownloadRequest, BatchDownloadResponse } from '@/types';
 import { M3U8Parser } from './m3u8-parser';
 
 export class DownloadManager {
@@ -10,6 +10,11 @@ export class DownloadManager {
     totalBytes: number;
     completedSegments: number;
   }> = new Map();
+
+  // Batch download properties
+  private queues: Map<string, DownloadQueue> = new Map();
+  private queueProgressCallbacks: Map<string, (progress: QueueProgress) => void> = new Map();
+  private activeQueues: Set<string> = new Set();
 
   async startDownload(
     url: string,
@@ -262,6 +267,252 @@ export class DownloadManager {
 
   private generateId(): string {
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
+  }
+
+  // Batch download methods
+  async startBatchDownload(
+    request: BatchDownloadRequest,
+    onQueueProgress?: (progress: QueueProgress) => void
+  ): Promise<BatchDownloadResponse> {
+    try {
+      const queueId = this.generateId();
+      const { urls, titles = [], maxConcurrency = 2, queueName } = request;
+
+      if (urls.length === 0) {
+        return { success: false, error: 'No URLs provided' };
+      }
+
+      // Create queue items
+      const queueItems: QueueItem[] = urls.map((url, index) => ({
+        id: this.generateId(),
+        queueId,
+        url,
+        title: titles[index] || `Video ${index + 1}`,
+        status: 'pending',
+        progress: 0,
+        totalSegments: 0,
+        downloadedSegments: 0,
+        createdAt: new Date(),
+        priority: index,
+        retryCount: 0,
+        maxRetries: 3,
+        addedAt: new Date()
+      }));
+
+      // Create download queue
+      const queue: DownloadQueue = {
+        id: queueId,
+        name: queueName || `Batch Download ${new Date().toLocaleString()}`,
+        items: queueItems,
+        status: 'idle',
+        maxConcurrent: maxConcurrency,
+        createdAt: new Date(),
+        totalItems: queueItems.length,
+        completedItems: 0,
+        failedItems: 0
+      };
+
+      this.queues.set(queueId, queue);
+
+      if (onQueueProgress) {
+        this.queueProgressCallbacks.set(queueId, onQueueProgress);
+      }
+
+      // Start processing queue
+      this.processQueue(queueId);
+
+      return {
+        success: true,
+        queueId,
+        addedCount: queueItems.length
+      };
+
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to start batch download'
+      };
+    }
+  }
+
+  private async processQueue(queueId: string): Promise<void> {
+    const queue = this.queues.get(queueId);
+    if (!queue || this.activeQueues.has(queueId)) return;
+
+    this.activeQueues.add(queueId);
+    queue.status = 'running';
+    this.updateQueueProgress(queueId);
+
+    try {
+      const semaphore = new Semaphore(queue.maxConcurrent);
+      const downloadPromises = queue.items.map(async (item) => {
+        await semaphore.acquire();
+
+        try {
+          await this.processQueueItem(queueId, item.id);
+        } catch (error) {
+          console.error(`Failed to process queue item ${item.id}:`, error);
+        } finally {
+          semaphore.release();
+        }
+      });
+
+      await Promise.all(downloadPromises);
+
+      // Update final queue status
+      queue.status = queue.failedItems === queue.totalItems ? 'failed' : 'completed';
+      queue.completedAt = new Date();
+      this.updateQueueProgress(queueId);
+
+    } catch (error) {
+      queue.status = 'failed';
+      this.updateQueueProgress(queueId);
+    } finally {
+      this.activeQueues.delete(queueId);
+    }
+  }
+
+  private async processQueueItem(queueId: string, itemId: string): Promise<void> {
+    const queue = this.queues.get(queueId);
+    if (!queue) return;
+
+    const item = queue.items.find(i => i.id === itemId);
+    if (!item) return;
+
+    try {
+      // Start individual download
+      const downloadId = await this.startDownload(
+        item.url,
+        item.title,
+        4, // Use fixed concurrency for individual downloads in batch
+        (progress) => {
+          // Update item progress
+          item.progress = progress.progress;
+          item.totalSegments = progress.totalSegments;
+          item.downloadedSegments = progress.currentSegment;
+          item.status = progress.status as any;
+
+          if (progress.status === 'completed') {
+            queue.completedItems++;
+            item.completedAt = new Date();
+          } else if (progress.status === 'failed') {
+            queue.failedItems++;
+            item.status = 'failed';
+          }
+
+          this.updateQueueProgress(queueId);
+        }
+      );
+
+      // Store the download ID for potential cancellation
+      item.id = downloadId;
+
+    } catch (error) {
+      item.status = 'failed';
+      queue.failedItems++;
+      this.updateQueueProgress(queueId);
+
+      // Retry logic
+      if (item.retryCount < item.maxRetries) {
+        item.retryCount++;
+        setTimeout(() => {
+          this.processQueueItem(queueId, itemId);
+        }, 5000); // Retry after 5 seconds
+      }
+    }
+  }
+
+  private updateQueueProgress(queueId: string): void {
+    const queue = this.queues.get(queueId);
+    const callback = this.queueProgressCallbacks.get(queueId);
+
+    if (!queue || !callback) return;
+
+    const activeItems = queue.items.filter(item => item.status === 'downloading').length;
+    const overallProgress = queue.totalItems > 0
+      ? Math.round(((queue.completedItems + queue.failedItems) / queue.totalItems) * 100)
+      : 0;
+
+    // Calculate total speed from active downloads
+    const totalSpeed = queue.items
+      .filter(item => item.status === 'downloading')
+      .reduce((sum, item) => {
+        const stats = this.downloadStats.get(item.id);
+        if (stats && stats.completedSegments > 0) {
+          const elapsedTime = (Date.now() - stats.startTime) / 1000;
+          return sum + (stats.totalBytes / elapsedTime);
+        }
+        return sum;
+      }, 0);
+
+    // Estimate remaining time
+    const remainingItems = queue.totalItems - queue.completedItems - queue.failedItems;
+    const avgTimePerItem = queue.completedItems > 0
+      ? (Date.now() - queue.createdAt.getTime()) / queue.completedItems / 1000
+      : 0;
+    const estimatedTimeRemaining = remainingItems * avgTimePerItem;
+
+    const progress: QueueProgress = {
+      queueId,
+      totalItems: queue.totalItems,
+      completedItems: queue.completedItems,
+      failedItems: queue.failedItems,
+      activeItems,
+      overallProgress,
+      totalSpeed,
+      estimatedTimeRemaining: Math.round(estimatedTimeRemaining),
+      status: queue.status
+    };
+
+    callback(progress);
+  }
+
+  cancelQueue(queueId: string): void {
+    const queue = this.queues.get(queueId);
+    if (!queue) return;
+
+    // Cancel all active downloads in the queue
+    queue.items.forEach(item => {
+      if (item.status === 'downloading' || item.status === 'pending') {
+        this.cancelDownload(item.id);
+      }
+    });
+
+    queue.status = 'failed';
+    this.updateQueueProgress(queueId);
+    this.activeQueues.delete(queueId);
+  }
+
+  getQueue(queueId: string): DownloadQueue | undefined {
+    return this.queues.get(queueId);
+  }
+
+  getAllQueues(): DownloadQueue[] {
+    return Array.from(this.queues.values());
+  }
+
+  pauseQueue(queueId: string): void {
+    const queue = this.queues.get(queueId);
+    if (!queue || queue.status !== 'running') return;
+
+    queue.status = 'paused';
+    this.updateQueueProgress(queueId);
+
+    // Pause active downloads
+    queue.items.forEach(item => {
+      if (item.status === 'downloading') {
+        this.cancelDownload(item.id);
+        item.status = 'pending'; // Reset to pending for resume
+      }
+    });
+  }
+
+  resumeQueue(queueId: string): void {
+    const queue = this.queues.get(queueId);
+    if (!queue || queue.status !== 'paused') return;
+
+    queue.status = 'running';
+    this.processQueue(queueId);
   }
 }
 
