@@ -1,0 +1,42 @@
+{
+  "name": "M3U8 Video Downloader",
+  "short_name": "M3U8 Downloader",
+  "description": "Download videos from M3U8 playlists with multi-threaded downloading, progress tracking, and download history management.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3B82F6",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/logo-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo-icon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["utilities", "productivity", "multimedia"],
+  "screenshots": [
+    {
+      "src": "/logo-demo.html",
+      "sizes": "1280x720",
+      "type": "text/html",
+      "form_factor": "wide",
+      "label": "M3U8 Downloader Interface"
+    }
+  ]
+}

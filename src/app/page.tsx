@@ -1,103 +1,118 @@
-import Image from "next/image";
+"use client";
+
+import { DownloadForm } from '@/components/DownloadForm';
+import { ProgressTracker } from '@/components/ProgressTracker';
+import { HistoryPanel } from '@/components/HistoryPanel';
+import { DownloadProvider } from '@/contexts/DownloadContext';
 
 export default function Home() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto space-y-8">
+          {/* Header */}
+          <div className="text-center">
+            <div className="flex justify-center mb-6">
+              <img
+                src="/logo.svg"
+                alt="M3U8 Video Downloader"
+                className="h-16 w-auto"
+              />
+            </div>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Download videos from M3U8 playlists with multi-threaded downloading,
+              progress tracking, and download history management.
+            </p>
+          </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+          {/* Main Content */}
+          <DownloadProvider>
+            <div className="space-y-6">
+              {/* Download Form */}
+              <DownloadForm />
+
+              {/* Progress Tracker */}
+              <ProgressTracker />
+            </div>
+          </DownloadProvider>
+
+          {/* Features Section */}
+          <div className="bg-white rounded-lg shadow-lg p-6 mt-12">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Features</h2>
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="text-center">
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-2">Easy Download</h3>
+                <p className="text-sm text-gray-600">Simply paste your M3U8 URL and start downloading</p>
+              </div>
+
+              <div className="text-center">
+                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-2">Multi-threaded</h3>
+                <p className="text-sm text-gray-600">Fast downloads with configurable concurrency</p>
+              </div>
+
+              <div className="text-center">
+                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-2">Progress Tracking</h3>
+                <p className="text-sm text-gray-600">Real-time progress with speed and ETA</p>
+              </div>
+
+              <div className="text-center">
+                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-2">Download History</h3>
+                <p className="text-sm text-gray-600">Keep track of all your downloads</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Instructions */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-blue-900 mb-3">How to Use</h3>
+            <ol className="list-decimal list-inside space-y-2 text-blue-800 mb-4">
+              <li>Paste your M3U8 playlist URL in the input field above</li>
+              <li>Optionally, enter a custom title for your video</li>
+              <li>Adjust advanced settings if needed (concurrent downloads)</li>
+              <li>Click "Start Download" to begin the process</li>
+              <li>Monitor progress in real-time and access your download history</li>
+            </ol>
+
+            <div className="bg-blue-100 border border-blue-300 rounded p-3 mt-4">
+              <h4 className="font-semibold text-blue-900 mb-2">📁 Download Location</h4>
+              <p className="text-sm text-blue-800">
+                Downloaded videos will be saved to your browser's default Downloads folder:
+              </p>
+              <ul className="text-sm text-blue-700 mt-1 ml-4">
+                <li>• <strong>Windows:</strong> C:\Users\[Username]\Downloads</li>
+                <li>• <strong>macOS:</strong> ~/Downloads</li>
+                <li>• <strong>Linux:</strong> ~/Downloads</li>
+              </ul>
+              <p className="text-xs text-blue-600 mt-2">
+                You can change your browser's download location in your browser settings.
+              </p>
+            </div>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
+
+      {/* History Panel */}
+      <HistoryPanel />
     </div>
   );
 }

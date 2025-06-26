@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: /sitemap.xml
+
+# Logo files
+Allow: /logo.svg
+Allow: /logo-icon.svg
+Allow: /logo-mono.svg
+Allow: /logo-demo.html
+
+# Manifest
+Allow: /site.webmanifest
